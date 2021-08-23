@@ -146,6 +146,11 @@ export class Renderer {
       }
     });
 
+    const dateEpoch = (new Date()).getTime();
+    const traceName = `trace-${dateEpoch}.json`
+
+    await page.tracing.start({ path: traceName });
+
     try {
       // Navigate to page. Wait until there are no oustanding network requests.
       response = await page.goto(requestUrl, {
@@ -156,6 +161,7 @@ export class Renderer {
       console.error(e);
     }
 
+    await page.tracing.stop();
     if (!response) {
       console.error('response does not exist');
       // This should only occur when the page is about:blank. See
