@@ -148,9 +148,18 @@ export class Renderer {
     });
 
     const dateEpoch = (new Date()).getTime();
-    const traceName = `trace-${dateEpoch}.json`
+    const traceFileName = `trace-${dateEpoch}.json`;
+    const traceLockFile = 'trace.lock';
 
-    await page.tracing.start({ path: traceName });
+    let isTracing = false;
+
+    if (!fs.existsSync(traceLockFile)) {
+      fs.writeFileSync(traceLockFile, 'locked');
+      isTracing = true;
+      await page.tracing.start({ path: traceFileName });
+    } else {
+      console.debug('TRACE FILE EXISTS, NOT STARTING');
+    }
 
     try {
       // Navigate to page. Wait until there are no oustanding network requests.
@@ -162,22 +171,29 @@ export class Renderer {
       console.error(e);
     }
 
-    await page.tracing.stop();
+    if (isTracing) {
+      // stop tracing
+      await page.tracing.stop();
 
-    await new Promise((resolve, reject) => {
-      const fileContents = fs.createReadStream(`./${traceName}`);
-      const writeStream = fs.createWriteStream(`./${traceName}.gz`);
-      const zip = zlib.createGzip();
-      fileContents.pipe(zip).pipe(writeStream).on('finish', (err: any) => {
-        if (err) {
-          reject(err);
-        } else {
-          fs.rm(`./${traceName}`, () => {
-            resolve('success');
-          });
-        }
+      // gzip trace file and delete
+      await new Promise((resolve, reject) => {
+        const fileContents = fs.createReadStream(`./${traceFileName}`);
+        const writeStream = fs.createWriteStream(`./${traceFileName}.gz`);
+        const zip = zlib.createGzip();
+        fileContents.pipe(zip).pipe(writeStream).on('finish', (err: unknown) => {
+          if (err) {
+            reject(err);
+          } else {
+            fs.rm(`./${traceFileName}`, () => {
+              fs.rm(`./${traceLockFile}`, () => {
+                isTracing = false;
+                resolve('success');
+              });
+            });
+          }
+        });
       })
-    })
+    }
 
     if (!response) {
       console.error('response does not exist');
