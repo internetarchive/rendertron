@@ -1,7 +1,8 @@
 import puppeteer, { ScreenshotOptions } from 'puppeteer';
 import url from 'url';
 import { dirname } from 'path';
-
+import * as fs from 'fs';
+import * as zlib from 'zlib';
 import { Config } from './config';
 
 type SerializedResponse = {
@@ -162,6 +163,22 @@ export class Renderer {
     }
 
     await page.tracing.stop();
+
+    await new Promise((resolve, reject) => {
+      const fileContents = fs.createReadStream(`./${traceName}`);
+      const writeStream = fs.createWriteStream(`./${traceName}.gz`);
+      const zip = zlib.createGzip();
+      fileContents.pipe(zip).pipe(writeStream).on('finish', (err: any) => {
+        if (err) {
+          reject(err);
+        } else {
+          fs.rm(`./${traceName}`, () => {
+            resolve('success');
+          });
+        }
+      })
+    })
+
     if (!response) {
       console.error('response does not exist');
       // This should only occur when the page is about:blank. See
