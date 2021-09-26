@@ -1,7 +1,8 @@
 import puppeteer, { ScreenshotOptions } from 'puppeteer';
 import url from 'url';
 import { dirname } from 'path';
-
+import * as fs from 'fs';
+import * as zlib from 'zlib';
 import { Config } from './config';
 
 type SerializedResponse = {
@@ -146,6 +147,20 @@ export class Renderer {
       }
     });
 
+    const dateEpoch = (new Date()).getTime();
+    const traceFileName = `trace-${dateEpoch}.json`;
+    const traceLockFile = 'trace.lock';
+
+    let isTracing = false;
+
+    if (!fs.existsSync(traceLockFile)) {
+      fs.writeFileSync(traceLockFile, 'locked');
+      isTracing = true;
+      await page.tracing.start({ path: traceFileName });
+    } else {
+      console.debug('TRACE FILE EXISTS, NOT STARTING');
+    }
+
     try {
       // Navigate to page. Wait until there are no oustanding network requests.
       response = await page.goto(requestUrl, {
@@ -154,6 +169,30 @@ export class Renderer {
       });
     } catch (e) {
       console.error(e);
+    }
+
+    if (isTracing) {
+      // stop tracing
+      await page.tracing.stop();
+
+      // gzip trace file and delete
+      await new Promise((resolve, reject) => {
+        const fileContents = fs.createReadStream(`./${traceFileName}`);
+        const writeStream = fs.createWriteStream(`./${traceFileName}.gz`);
+        const zip = zlib.createGzip();
+        fileContents.pipe(zip).pipe(writeStream).on('finish', (err: unknown) => {
+          if (err) {
+            reject(err);
+          } else {
+            fs.rm(`./${traceFileName}`, () => {
+              fs.rm(`./${traceLockFile}`, () => {
+                isTracing = false;
+                resolve('success');
+              });
+            });
+          }
+        });
+      })
     }
 
     if (!response) {

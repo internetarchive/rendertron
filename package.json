@@ -1,11 +1,14 @@
 {
-  "name": "rendertron",
-  "version": "3.1.0",
+  "name": "@internetarchive/rendertron",
+  "version": "3.2.0-alpha.1",
   "description": "Renders webpages using headless Chrome for usage by bots",
   "license": "Apache-2.0",
-  "repository": "https://github.com/GoogleChrome/rendertron",
+  "repository": "https://github.com/internetarchive/rendertron",
   "engines": {
     "node": ">=10"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "main": "build/rendertron.js",
   "types": "build/rendertron.d.ts",
@@ -44,7 +47,8 @@
     "koa-static": "^5.0.0",
     "performance-now": "^2.1.0",
     "puppeteer": "^10.0.0",
-    "semver": "^7.3.4"
+    "semver": "^7.3.4",
+    "zlib": "^1.0.5"
   },
   "devDependencies": {
     "@google-cloud/datastore": "^6.3.1",
